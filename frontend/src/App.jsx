@@ -41,6 +41,7 @@ import OAuthCallback from "./features/dashboard/pages/OAuthCallback";
 import DashboardPage        from "./features/dashboard/pages/DashboardPage";
 import EmailListPage        from "./features/emails/pages/EmailListPage";
 import RulesPage            from "./features/rules/pages/RulesPage";
+import RuleEditorPage       from "./features/rules/pages/RuleEditorPage";
 import ExecutionHistoryPage from "./features/execution-history/pages/ExecutionHistoryPage";
 
 export default function App() {
@@ -60,10 +61,12 @@ export default function App() {
 
           {/* ── Protected App Routes (require authentication) ──────── */}
           <Route element={<ProtectedLayout />}>
-            <Route path="/dashboard"  element={<DashboardPage />} />
-            <Route path="/emails"     element={<EmailListPage />} />
-            <Route path="/rules"      element={<RulesPage />} />
-            <Route path="/executions" element={<ExecutionHistoryPage />} />
+            <Route path="/dashboard"      element={<DashboardPage />} />
+            <Route path="/emails"         element={<EmailListPage />} />
+            <Route path="/rules"          element={<RulesPage />} />
+            <Route path="/rules/new"      element={<RuleEditorPage />} />
+            <Route path="/rules/:id/edit" element={<RuleEditorPage />} />
+            <Route path="/executions"     element={<ExecutionHistoryPage />} />
           </Route>
 
           {/* ── Catch-all ──────────────────────────────────────────── */}

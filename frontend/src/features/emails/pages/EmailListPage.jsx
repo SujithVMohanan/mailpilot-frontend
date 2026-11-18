@@ -1,32 +1,47 @@
 /**
- * EmailListPage — /emails
+ * EmailListPage — Modern SaaS Card List with inline expanding message viewer.
  *
- * Fully integrated with backend EmailListView:
- *   - Search (subject, sender, recipient, snippet, body)
- *   - Filter by Read status (All / Unread / Read)
- *   - Sort by Date (newest/oldest) or Subject (A-Z / Z-A)
- *   - Paginated list of emails
- *   - Detail modal on click
+ * Implements:
+ *   - Card-based listing ("inside the card list card") instead of rigid tables
+ *   - Instant metadata display with zero delay
+ *   - Inline expandable message details with safe HTML & Plain Text viewers
+ *   - Memory caching of fetched bodies for instantaneous re-expansion
+ *   - Debounced search & read/unread filter dropdowns
+ *   - Distinct empty states for initial sync vs filter searches
  */
 
-import { useState } from "react";
-import { Search, Inbox, AlertCircle, ArrowUpDown, Filter } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Search,
+  Inbox,
+  AlertCircle,
+  Filter,
+  ArrowUpDown,
+  RefreshCw,
+  X,
+  Layers,
+} from "lucide-react";
 import useEmails from "../hooks/useEmails";
-import EmailDetailModal from "../components/EmailDetailModal";
+import EmailCard from "../components/EmailCard";
 import Pagination from "../../../components/ui/Pagination";
-import Spinner from "../../../components/ui/Spinner";
-import Badge from "../../../components/ui/Badge";
+import SelectDropdown from "../../../components/ui/SelectDropdown";
+import Button from "../../../components/ui/Button";
+import EmptyState from "../../../components/ui/EmptyState";
+import { SkeletonCardList } from "../../../components/ui/Skeleton";
+import { fetchEmailDetail } from "../services/emailService";
 
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const READ_OPTIONS = [
+  { value: "", label: "All Messages" },
+  { value: "false", label: "Unread Only" },
+  { value: "true", label: "Read Only" },
+];
+
+const ORDER_OPTIONS = [
+  { value: "-received_datetime", label: "Newest First" },
+  { value: "received_datetime", label: "Oldest First" },
+  { value: "subject", label: "Subject (A → Z)" },
+  { value: "-subject", label: "Subject (Z → A)" },
+];
 
 export default function EmailListPage() {
   const {
@@ -43,178 +58,214 @@ export default function EmailListPage() {
     setSearch,
     setIsReadFilter,
     setOrdering,
+    reload,
   } = useEmails();
 
-  const [selectedEmailId, setSelectedEmailId] = useState(null);
+  // Active expanded email card ID
+  const [expandedEmailId, setExpandedEmailId] = useState(null);
+
+  // Cached detailed payloads (keyed by email.id)
+  const [detailsCache, setDetailsCache] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState({});
+  const [detailErrors, setDetailErrors] = useState({});
+
+  const hasActiveFilters = Boolean(search || isReadFilter !== "");
+
+  function handleClearFilters() {
+    setSearch("");
+    setIsReadFilter("");
+    setPage(1);
+  }
+
+  // Toggle card expansion and fetch full body if not already cached
+  async function handleToggleExpand(email) {
+    if (expandedEmailId === email.id) {
+      // Collapse
+      setExpandedEmailId(null);
+      return;
+    }
+
+    // Expand
+    setExpandedEmailId(email.id);
+
+    // If already in memory cache, no need to re-fetch
+    if (detailsCache[email.id]) return;
+
+    setLoadingDetails((prev) => ({ ...prev, [email.id]: true }));
+    setDetailErrors((prev) => ({ ...prev, [email.id]: "" }));
+
+    try {
+      const fullDetail = await fetchEmailDetail(email.id);
+      const unwrapped = fullDetail?.data?.data || fullDetail?.data || fullDetail;
+      if (unwrapped && typeof unwrapped === "object") {
+        setDetailsCache((prev) => ({ ...prev, [email.id]: unwrapped }));
+      }
+    } catch (err) {
+      setDetailErrors((prev) => ({
+        ...prev,
+        [email.id]:
+          err?.response?.data?.message ||
+          err?.response?.data?.detail ||
+          "Could not fetch full message content.",
+      }));
+    } finally {
+      setLoadingDetails((prev) => ({ ...prev, [email.id]: false }));
+    }
+  }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
-      {/* Page Heading */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page Header ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Synced Emails</h1>
-          <p className="text-sm text-gray-500">
-            Total records stored locally in PostgreSQL: {total}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Synced Emails
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Browse and inspect your synchronized Gmail messages with inline detail preview.
           </p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
+            onClick={reload}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Controls Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* ── Search & Filter Controls Bar ────────────────────────────── */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-card flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search subject, sender, body…"
+            placeholder="Search by subject, sender, body…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 transition"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Read / Unread Filter */}
-        <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2.5 py-1">
-          <Filter className="h-4 w-4 text-gray-400" />
-          <select
+        {/* Dropdowns */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Read Status Dropdown */}
+          <SelectDropdown
+            options={READ_OPTIONS}
             value={isReadFilter}
-            onChange={(e) => setIsReadFilter(e.target.value)}
-            className="text-sm outline-none bg-transparent cursor-pointer"
-          >
-            <option value="">All Statuses</option>
-            <option value="false">Unread Only</option>
-            <option value="true">Read Only</option>
-          </select>
-        </div>
+            onChange={setIsReadFilter}
+            icon={Filter}
+            size="sm"
+            className="min-w-[130px]"
+          />
 
-        {/* Sorting Dropdown */}
-        <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2.5 py-1">
-          <ArrowUpDown className="h-4 w-4 text-gray-400" />
-          <select
+          {/* Sort Ordering Dropdown */}
+          <SelectDropdown
+            options={ORDER_OPTIONS}
             value={ordering}
-            onChange={(e) => setOrdering(e.target.value)}
-            className="text-sm outline-none bg-transparent cursor-pointer"
-          >
-            <option value="-received_datetime">Newest First</option>
-            <option value="received_datetime">Oldest First</option>
-            <option value="subject">Subject (A-Z)</option>
-            <option value="-subject">Subject (Z-A)</option>
-          </select>
+            onChange={setOrdering}
+            icon={ArrowUpDown}
+            size="sm"
+            className="min-w-[145px]"
+          />
+
+          {/* Clear Filters Reset */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-slate-500 hover:text-rose-600 text-xs"
+            >
+              Reset
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Error banner */}
+      {/* ── Error Banner ───────────────────────────────────────────── */}
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          {error}
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs sm:text-sm text-rose-800 flex items-start gap-3 shadow-subtle">
+          <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-rose-900">Unable to load messages</p>
+            <p className="mt-0.5">{error}</p>
+          </div>
+          <Button variant="outline" size="xs" onClick={reload}>
+            Retry
+          </Button>
         </div>
       )}
 
-      {/* Loading */}
-      {loading && <Spinner />}
+      {/* ── Modern Card Listing (Inline Expandable) ──────────────────── */}
+      {loading ? (
+        <SkeletonCardList count={5} />
+      ) : emails.length === 0 ? (
+        hasActiveFilters ? (
+          <EmptyState
+            icon={Search}
+            title="No matching emails found"
+            description={`No stored messages match "${search}" with the selected filters. Try broadening your criteria.`}
+            actionLabel="Clear Filters"
+            onAction={handleClearFilters}
+          />
+        ) : (
+          <EmptyState
+            icon={Inbox}
+            title="No synchronized emails yet"
+            description="Your inbox has not been synchronized into the local database. Connect your Gmail account and trigger a sync to populate this workspace."
+            actionLabel="Go to Dashboard"
+            onAction={() => (window.location.href = "/dashboard")}
+          />
+        )
+      ) : (
+        <div className="space-y-4">
+          {/* Card List of Emails */}
+          <div className="space-y-3.5">
+            {emails.map((email) => {
+              const isExpanded = expandedEmailId === email.id;
 
-      {/* Emails Table */}
-      {!loading && !error && (
-        <>
-          {emails.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400 bg-white rounded-xl border border-gray-200">
-              <Inbox className="h-12 w-12 mb-3 opacity-40 text-gray-400" />
-              <p className="text-base font-semibold text-gray-700">No emails found</p>
-              <p className="text-sm text-gray-500 mt-1">
-                {search || isReadFilter
-                  ? "Try resetting your search or filter criteria."
-                  : "Sync your Gmail account from the dashboard to import emails."}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-medium">
-                    <tr>
-                      <th className="text-left px-4 py-3 w-52">From</th>
-                      <th className="text-left px-4 py-3">Subject & Snippet</th>
-                      <th className="text-left px-4 py-3 w-28 hidden md:table-cell">Status</th>
-                      <th className="text-left px-4 py-3 hidden lg:table-cell">Labels</th>
-                      <th className="text-left px-4 py-3 w-40 hidden sm:table-cell">Received</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {emails.map((email) => (
-                      <tr
-                        key={email.id}
-                        onClick={() => setSelectedEmailId(email.id)}
-                        className={`hover:bg-blue-50 cursor-pointer transition ${
-                          !email.is_read ? "font-semibold bg-blue-50/20" : ""
-                        }`}
-                      >
-                        {/* From */}
-                        <td className="px-4 py-3 text-gray-900 truncate max-w-[13rem]">
-                          {email.sender || "—"}
-                        </td>
-
-                        {/* Subject + Snippet */}
-                        <td className="px-4 py-3">
-                          <p className="text-gray-900 truncate max-w-md">
-                            {email.subject || "(no subject)"}
-                          </p>
-                          {email.snippet && (
-                            <p className="text-xs text-gray-500 truncate max-w-md font-normal mt-0.5">
-                              {email.snippet}
-                            </p>
-                          )}
-                        </td>
-
-                        {/* Read Status */}
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          <Badge
-                            label={email.is_read ? "Read" : "Unread"}
-                            variant={email.is_read ? "default" : "warning"}
-                          />
-                        </td>
-
-                        {/* Labels */}
-                        <td className="px-4 py-3 hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {(email.label_ids || []).slice(0, 2).map((lbl) => (
-                              <Badge key={lbl} label={lbl} variant="info" />
-                            ))}
-                            {(email.label_ids || []).length > 2 && (
-                              <Badge label={`+${email.label_ids.length - 2}`} variant="default" />
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Received Date */}
-                        <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell whitespace-nowrap">
-                          {formatDate(email.received_datetime)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination Bar */}
-              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-                <Pagination
-                  page={page}
-                  total={total}
-                  pageSize={pageSize}
-                  onPage={setPage}
+              return (
+                <EmailCard
+                  key={email.id}
+                  email={email}
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => handleToggleExpand(email)}
+                  detailData={detailsCache[email.id]}
+                  loadingDetail={loadingDetails[email.id]}
+                  detailError={detailErrors[email.id]}
+                  onRetryDetail={() => handleToggleExpand(email)}
                 />
-              </div>
-            </div>
-          )}
-        </>
-      )}
+              );
+            })}
+          </div>
 
-      {/* Email Detail Modal */}
-      <EmailDetailModal
-        emailId={selectedEmailId}
-        onClose={() => setSelectedEmailId(null)}
-      />
+          {/* Table / List Pagination */}
+          <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-card">
+            <Pagination
+              page={page}
+              total={total}
+              pageSize={pageSize}
+              onPage={setPage}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

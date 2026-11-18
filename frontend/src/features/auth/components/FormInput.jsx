@@ -1,27 +1,78 @@
 /**
- * FormInput — reusable labelled input for auth forms.
- *
- * Props:
- *   id       — links <label> and <input>
- *   label    — visible label text
- *   error    — validation error string (shown in red when present)
- *   ...rest  — forwarded to <input> (type, value, onChange, placeholder, …)
+ * FormInput — Modern SaaS form input with optional icons & password toggle.
  */
 
-export default function FormInput({ id, label, error, ...rest }) {
+import React, { useState } from "react";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+
+export default function FormInput({
+  id,
+  label,
+  error,
+  type = "text",
+  icon: Icon = null,
+  required = false,
+  className = "",
+  ...rest
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const actualType = isPassword ? (showPassword ? "text" : "password") : type;
+
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
-        {label}
-      </label>
-      <input
-        id={id}
-        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors
-          focus:ring-2 focus:ring-blue-500
-          ${error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"}`}
-        {...rest}
-      />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+    <div className={`space-y-1.5 ${className}`}>
+      {label && (
+        <label
+          htmlFor={id}
+          className="block text-xs font-bold text-slate-700 uppercase tracking-wider"
+        >
+          {label} {required && <span className="text-rose-500">*</span>}
+        </label>
+      )}
+
+      <div className="relative">
+        {Icon && (
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+
+        <input
+          id={id}
+          type={actualType}
+          className={`w-full rounded-xl border px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 bg-white placeholder-slate-400 outline-none transition-all duration-150 shadow-subtle ${
+            Icon ? "pl-10" : ""
+          } ${isPassword ? "pr-10" : ""} ${
+            error
+              ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+              : "border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300"
+          }`}
+          {...rest}
+        />
+
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition cursor-pointer p-0.5"
+            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="flex items-center gap-1 text-xs text-rose-600 font-medium pt-0.5">
+          <AlertCircle className="h-3 w-3 flex-shrink-0" />
+          <span>{error}</span>
+        </p>
+      )}
     </div>
   );
 }

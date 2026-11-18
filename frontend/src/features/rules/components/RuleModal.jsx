@@ -1,16 +1,11 @@
 /**
- * RuleModal — Modal form to create or edit an Email Automation Rule.
- *
- * Implements:
- *   - Name, Description, Group Predicate (ALL / ANY)
- *   - Dynamic Conditions builder (field, predicate, value, unit)
- *   - Dynamic Actions builder (MARK_AS_READ, MARK_AS_UNREAD, MOVE_MESSAGE)
- *   - Gmail labels selector for MOVE_MESSAGE
+ * RuleModal — Polished modal dialog for creating and updating automation rules.
  */
 
-import { useState, useEffect } from "react";
-import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, AlertCircle, Sparkles, SlidersHorizontal } from "lucide-react";
 import Modal from "../../../components/ui/Modal";
+import Button from "../../../components/ui/Button";
 import { fetchLabels } from "../../emails/services/emailService";
 import { createRule, updateRule } from "../services/ruleService";
 
@@ -66,8 +61,12 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
     if (isOpen) {
       fetchLabels()
         .then((data) => {
-          if (Array.isArray(data)) setLabels(data);
-          else if (data?.results) setLabels(data.results);
+          let list = [];
+          if (Array.isArray(data)) list = data;
+          else if (data?.labels) list = data.labels;
+          else if (data?.results) list = data.results;
+          else if (data?.data?.labels) list = data.data.labels;
+          setLabels(list);
         })
         .catch(() => {});
     }
@@ -110,7 +109,7 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
     setError("");
   }, [ruleToEdit, isOpen]);
 
-  // ── Condition helpers ───────────────────────────────────────────────────────
+  // Condition helpers
   function handleConditionFieldChange(index, newField) {
     const updated = [...conditions];
     const isDate = newField === "RECEIVED_DATE";
@@ -141,7 +140,7 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
     setConditions(conditions.filter((_, i) => i !== index));
   }
 
-  // ── Action helpers ──────────────────────────────────────────────────────────
+  // Action helpers
   function handleActionTypeChange(index, type) {
     const updated = [...actions];
     updated[index] = {
@@ -154,7 +153,7 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
 
   function handleLabelSelect(index, labelId) {
     const selected = labels.find((l) => (l.id || l) === labelId);
-    const labelName = typeof selected === "object" ? (selected.name || selected.id) : selected;
+    const labelName = typeof selected === "object" ? selected.name || selected.id : selected;
     const updated = [...actions];
     updated[index] = {
       ...updated[index],
@@ -176,7 +175,6 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
     setActions(actions.filter((_, i) => i !== index));
   }
 
-  // ── Validation & Submission ─────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -251,94 +249,127 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? "Edit Automation Rule" : "Create Automation Rule"}
+      subtitle="Define match conditions and corresponding Gmail inbox actions."
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-xs sm:text-sm text-rose-800 flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Basic Information */}
-        <div className="space-y-3">
+        {/* ── Section 1: Basic Information ───────────────────────── */}
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Rule Name <span className="text-red-500">*</span>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Rule Name <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
-              placeholder="e.g., Categorize Invoices from Stripe"
+              placeholder="e.g. Categorize Stripe Invoices & Receipts"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-subtle transition"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Description (Optional)
             </label>
             <input
               type="text"
-              placeholder="Brief summary of what this automation does"
+              placeholder="Brief description of when this automation executes"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-subtle transition"
             />
           </div>
 
-          {/* Logic combination */}
-          <div className="pt-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Condition Match Logic
+          {/* Logic Toggle Cards */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Match Logic Combination
             </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label
+                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                  groupPredicate === "ALL"
+                    ? "bg-blue-50/70 border-blue-400 shadow-2xs"
+                    : "bg-slate-50 border-slate-200 hover:bg-slate-100/60"
+                }`}
+              >
                 <input
                   type="radio"
                   name="group_predicate"
                   value="ALL"
                   checked={groupPredicate === "ALL"}
                   onChange={() => setGroupPredicate("ALL")}
-                  className="text-blue-600 focus:ring-blue-500"
+                  className="mt-1 text-blue-600 focus:ring-blue-500"
                 />
-                Match <strong>ALL</strong> conditions (AND)
+                <div>
+                  <p className="font-bold text-slate-900 text-xs sm:text-sm">
+                    Match ALL conditions (AND)
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-normal mt-0.5">
+                    Every condition specified below must evaluate to true.
+                  </p>
+                </div>
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+
+              <label
+                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                  groupPredicate === "ANY"
+                    ? "bg-blue-50/70 border-blue-400 shadow-2xs"
+                    : "bg-slate-50 border-slate-200 hover:bg-slate-100/60"
+                }`}
+              >
                 <input
                   type="radio"
                   name="group_predicate"
                   value="ANY"
                   checked={groupPredicate === "ANY"}
                   onChange={() => setGroupPredicate("ANY")}
-                  className="text-blue-600 focus:ring-blue-500"
+                  className="mt-1 text-blue-600 focus:ring-blue-500"
                 />
-                Match <strong>ANY</strong> condition (OR)
+                <div>
+                  <p className="font-bold text-slate-900 text-xs sm:text-sm">
+                    Match ANY condition (OR)
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-normal mt-0.5">
+                    At least one condition matching triggers the actions.
+                  </p>
+                </div>
               </label>
             </div>
           </div>
         </div>
 
-        {/* Conditions Builder */}
-        <div className="border-t border-gray-100 pt-4">
+        {/* ── Section 2: Conditions Builder ──────────────────────── */}
+        <div className="border-t border-slate-100 pt-5">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-              Conditions
-            </h4>
-            <button
-              type="button"
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Trigger Conditions
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Filters evaluated locally against stored email records.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="xs"
+              icon={Plus}
               onClick={addCondition}
-              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md transition"
             >
-              <Plus className="h-3.5 w-3.5" />
               Add Condition
-            </button>
+            </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {conditions.map((cond, index) => {
               const isDate = cond.field === "RECEIVED_DATE";
               const predicates = isDate ? DATE_PREDICATES : STRING_PREDICATES;
@@ -346,13 +377,13 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
               return (
                 <div
                   key={index}
-                  className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200"
+                  className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/90"
                 >
-                  {/* Field */}
+                  {/* Field Selector */}
                   <select
                     value={cond.field}
                     onChange={(e) => handleConditionFieldChange(index, e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                   >
                     {FIELD_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -361,11 +392,11 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
                     ))}
                   </select>
 
-                  {/* Predicate */}
+                  {/* Predicate Selector */}
                   <select
                     value={cond.predicate}
                     onChange={(e) => updateCondition(index, "predicate", e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                   >
                     {predicates.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -374,14 +405,14 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
                     ))}
                   </select>
 
-                  {/* Value */}
+                  {/* Value Input */}
                   <input
                     type={isDate ? "number" : "text"}
                     min={isDate ? "1" : undefined}
-                    placeholder={isDate ? "Number" : "Value to match…"}
+                    placeholder={isDate ? "Offset count" : "Value to match…"}
                     value={cond.value}
                     onChange={(e) => updateCondition(index, "value", e.target.value)}
-                    className="flex-1 min-w-[100px] px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 min-w-[120px] px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                   />
 
                   {/* Date Unit */}
@@ -389,19 +420,20 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
                     <select
                       value={cond.unit}
                       onChange={(e) => updateCondition(index, "unit", e.target.value)}
-                      className="px-2 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                     >
                       <option value="DAYS">Days</option>
                       <option value="MONTHS">Months</option>
                     </select>
                   )}
 
-                  {/* Remove */}
+                  {/* Remove Button */}
                   <button
                     type="button"
                     onClick={() => removeCondition(index)}
                     disabled={conditions.length <= 1}
-                    className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400 transition"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-slate-200 disabled:opacity-30 disabled:hover:text-slate-400 transition cursor-pointer"
+                    title="Remove condition"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -411,36 +443,41 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
           </div>
         </div>
 
-        {/* Actions Builder */}
-        <div className="border-t border-gray-100 pt-4">
+        {/* ── Section 3: Actions Builder ─────────────────────────── */}
+        <div className="border-t border-slate-100 pt-5">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-              Actions
-            </h4>
-            <button
-              type="button"
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Automated Actions
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Actions applied to matching emails in Gmail and local database.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="xs"
+              icon={Plus}
               onClick={addAction}
-              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md transition"
             >
-              <Plus className="h-3.5 w-3.5" />
               Add Action
-            </button>
+            </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {actions.map((act, index) => {
               const isMove = act.action_type === "MOVE_MESSAGE";
 
               return (
                 <div
                   key={index}
-                  className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200"
+                  className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/90"
                 >
-                  {/* Action Type */}
+                  {/* Action Selector */}
                   <select
                     value={act.action_type}
                     onChange={(e) => handleActionTypeChange(index, e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                   >
                     {ACTION_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -456,15 +493,15 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
                         <select
                           value={act.destination_label_id}
                           onChange={(e) => handleLabelSelect(index, e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                         >
-                          <option value="">Select Target Label…</option>
+                          <option value="">Select Destination Label…</option>
                           {labels.map((lbl) => {
                             const id = lbl.id || lbl;
-                            const name = lbl.name || lbl;
+                            const labelName = lbl.name || lbl;
                             return (
                               <option key={id} value={id}>
-                                {name}
+                                {labelName}
                               </option>
                             );
                           })}
@@ -472,23 +509,30 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
                       ) : (
                         <input
                           type="text"
-                          placeholder="Label ID / Name (e.g., INVOICE)"
+                          placeholder="Label name (e.g., Reports)"
                           value={act.destination_label_name || act.destination_label_id}
-                          onChange={(e) =>
-                            updateCondition(index, "destination_label_id", e.target.value)
-                          }
-                          className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-md text-xs sm:text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                          onChange={(e) => {
+                            const updated = [...actions];
+                            updated[index] = {
+                              ...updated[index],
+                              destination_label_id: e.target.value,
+                              destination_label_name: e.target.value,
+                            };
+                            setActions(updated);
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
                         />
                       )}
                     </div>
                   )}
 
-                  {/* Remove */}
+                  {/* Remove Button */}
                   <button
                     type="button"
                     onClick={() => removeAction(index)}
                     disabled={actions.length <= 1}
-                    className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400 transition"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-slate-200 disabled:opacity-30 disabled:hover:text-slate-400 transition cursor-pointer"
+                    title="Remove action"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -498,23 +542,20 @@ export default function RuleModal({ isOpen, onClose, ruleToEdit, onSaved }) {
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition"
-          >
+        {/* ── Modal Footer ────────────────────────────────────────── */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="sm"
+            loading={saving}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-60 shadow-sm"
           >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Saving…" : isEditing ? "Update Rule" : "Create Rule"}
-          </button>
+            {saving ? "Saving…" : isEditing ? "Save Changes" : "Create Rule"}
+          </Button>
         </div>
       </form>
     </Modal>

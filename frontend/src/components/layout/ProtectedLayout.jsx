@@ -1,11 +1,8 @@
 /**
- * ProtectedLayout — wraps every authenticated page.
- *
- * Renders:  Navbar + Sidebar + <Outlet /> (the active page).
- * Redirects to /login if the user is not authenticated.
- * Shows a full-screen spinner while the initial auth check is in progress.
+ * ProtectedLayout — Responsive layout wrapper with mobile drawer management.
  */
 
+import React, { useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Navbar from "./Navbar";
@@ -14,11 +11,17 @@ import Spinner from "../ui/Spinner";
 
 export default function ProtectedLayout() {
   const { user, isLoading } = useAuth();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="lg" />
+          <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+            Loading Workspace…
+          </p>
+        </div>
       </div>
     );
   }
@@ -28,12 +31,19 @@ export default function ProtectedLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <Sidebar />
-      {/* Main content area — offset by navbar height (4rem) + sidebar width (14rem) */}
-      <main className="pt-16 pl-56">
-        <div className="p-6">
+    <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-blue-500 selection:text-white">
+      {/* Top Navbar */}
+      <Navbar onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)} />
+
+      {/* Left Sidebar (Desktop + Mobile Drawer) */}
+      <Sidebar
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 pt-16 lg:pl-64 transition-all duration-200">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
           <Outlet />
         </div>
       </main>

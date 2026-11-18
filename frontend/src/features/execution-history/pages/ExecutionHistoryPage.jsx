@@ -1,40 +1,40 @@
 /**
- * ExecutionHistoryPage — /executions
- *
- * Implements:
- *   - Paginated list of rule execution audits
- *   - Status pills (SUCCESS, FAILED, PARTIAL, RUNNING)
- *   - Metrics: Evaluated, Matched, Actions succeeded/failed
- *   - Expandable row to view individual RuleExecutionLog entries
- *   - Filter executions by rule
- *   - Auto-refresh
+ * ExecutionHistoryPage — Modern audit logs workspace with expandable action traces.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ClipboardList,
   RefreshCw,
   ChevronDown,
   ChevronRight,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Clock,
   Filter,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import { fetchExecutions } from "../services/executionService";
 import { fetchRules } from "../../rules/services/ruleService";
 import Pagination from "../../../components/ui/Pagination";
-import Spinner from "../../../components/ui/Spinner";
+import SelectDropdown from "../../../components/ui/SelectDropdown";
+import Button from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
+import EmptyState from "../../../components/ui/EmptyState";
+import { SkeletonTable } from "../../../components/ui/Skeleton";
 
 const PAGE_SIZE = 20;
 
 function formatTimestamp(ts) {
   if (!ts) return "—";
   return new Date(ts).toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
   });
 }
 
@@ -48,14 +48,14 @@ function calculateDuration(start, end) {
 function getStatusBadge(status) {
   switch (status?.toUpperCase()) {
     case "SUCCESS":
-      return <Badge label="SUCCESS" variant="success" />;
+      return <Badge label="SUCCESS" variant="success" withDot />;
     case "FAILED":
-      return <Badge label="FAILED" variant="error" />;
+      return <Badge label="FAILED" variant="error" withDot />;
     case "PARTIAL_SUCCESS":
     case "PARTIAL":
-      return <Badge label="PARTIAL" variant="warning" />;
+      return <Badge label="PARTIAL" variant="warning" withDot />;
     case "RUNNING":
-      return <Badge label="RUNNING" variant="info" />;
+      return <Badge label="RUNNING" variant="info" withDot />;
     default:
       return <Badge label={status || "UNKNOWN"} variant="default" />;
   }
@@ -117,7 +117,11 @@ export default function ExecutionHistoryPage() {
       setExecutions(list);
       setTotal(count);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.response?.data?.detail || "Failed to load execution logs.");
+      setError(
+        err?.response?.data?.message ||
+        err?.response?.data?.detail ||
+        "Failed to load execution audit logs."
+      );
     } finally {
       setLoading(false);
     }
@@ -131,217 +135,248 @@ export default function ExecutionHistoryPage() {
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
+  const ruleOptions = [
+    { value: "", label: "All Rules" },
+    ...rules.map((r) => ({ value: r.id, label: r.name })),
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page Header ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Rule Execution History</h1>
-          <p className="text-sm text-gray-500">
-            Audit logs detailing evaluated emails, matches, and applied actions.
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Audit Execution History
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Complete audit trail of automation runs, matched messages, and executed actions.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Rule Filter */}
           {rules.length > 0 && (
-            <div className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 shadow-sm">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={selectedRuleId}
-                onChange={(e) => {
-                  setSelectedRuleId(e.target.value);
-                  setPage(1);
-                }}
-                className="text-sm outline-none bg-transparent cursor-pointer"
-              >
-                <option value="">All Rules</option>
-                {rules.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SelectDropdown
+              options={ruleOptions}
+              value={selectedRuleId}
+              onChange={(val) => {
+                setSelectedRuleId(val);
+                setPage(1);
+              }}
+              icon={Filter}
+              size="sm"
+              className="min-w-[160px]"
+            />
           )}
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
+            icon={RefreshCw}
             onClick={loadExecutions}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
           >
-            <RefreshCw className={`h-4 w-4 text-gray-500 ${loading ? "animate-spin" : ""}`} />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Error */}
+      {/* ── Error Banner ───────────────────────────────────────────── */}
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="rounded-xl bg-rose-50 border border-rose-200/80 p-4 text-xs sm:text-sm text-rose-800 flex items-start gap-3 shadow-subtle">
+          <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-rose-900">Audit Trail Notice</p>
+            <p className="mt-0.5">{error}</p>
+          </div>
+          <Button variant="outline" size="xs" onClick={loadExecutions}>
+            Retry
+          </Button>
         </div>
       )}
 
-      {/* Loading */}
-      {loading && <Spinner />}
+      {/* ── Table of Executions ────────────────────────────────────── */}
+      {loading ? (
+        <SkeletonTable rows={7} cols={6} />
+      ) : executions.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title="No execution history on record"
+          description={
+            selectedRuleId
+              ? "No execution logs match the selected rule. Try choosing 'All Rules'."
+              : "Execute an automation rule from the Rules workspace to record your first execution audit."
+          }
+          actionLabel="View Automation Rules"
+          onAction={() => (window.location.href = "/rules")}
+        />
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="py-3 px-3 w-10 text-center"></th>
+                  <th className="py-3 px-4">Rule Name</th>
+                  <th className="py-3 px-4 w-32">Status</th>
+                  <th className="py-3 px-4 w-36">Evaluated / Matched</th>
+                  <th className="py-3 px-4 w-36">Actions Performed</th>
+                  <th className="py-3 px-4 w-44">Executed At</th>
+                  <th className="py-3 px-4 w-24 text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                {executions.map((exec) => {
+                  const isExpanded = expandedId === exec.id;
+                  const hasLogs = exec.logs && exec.logs.length > 0;
 
-      {/* Execution Logs Table */}
-      {!loading && (
-        <>
-          {executions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400 bg-white rounded-xl border border-gray-200 shadow-sm">
-              <ClipboardList className="h-12 w-12 mb-3 opacity-30 text-gray-400" />
-              <p className="text-base font-semibold text-gray-700">No execution history found</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Run an automation rule from the Rules page to generate execution audits.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-medium">
-                    <tr>
-                      <th className="w-8"></th>
-                      <th className="text-left px-4 py-3">Rule Name</th>
-                      <th className="text-left px-4 py-3 w-28">Status</th>
-                      <th className="text-left px-4 py-3 w-32">Evaluated / Matched</th>
-                      <th className="text-left px-4 py-3 w-32">Actions Succeeded</th>
-                      <th className="text-left px-4 py-3 w-40">Executed At</th>
-                      <th className="text-left px-4 py-3 w-24">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {executions.map((exec) => {
-                      const isExpanded = expandedId === exec.id;
-                      const hasLogs = exec.logs && exec.logs.length > 0;
-
-                      return (
-                        <tbody key={exec.id}>
-                          <tr
-                            onClick={() => hasLogs && toggleExpand(exec.id)}
-                            className={`hover:bg-blue-50/50 transition ${
-                              hasLogs ? "cursor-pointer" : ""
-                            }`}
-                          >
-                            {/* Expand Icon */}
-                            <td className="pl-3 pr-1 text-gray-400">
-                              {hasLogs ? (
-                                isExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-blue-600" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )
-                              ) : null}
-                            </td>
-
-                            {/* Rule Name */}
-                            <td className="px-4 py-3.5 font-semibold text-gray-800">
-                              {exec.rule_name_snapshot || (exec.rule?.name ?? `Rule #${exec.rule}`)}
-                            </td>
-
-                            {/* Status */}
-                            <td className="px-4 py-3.5">
-                              {getStatusBadge(exec.status)}
-                            </td>
-
-                            {/* Evaluated / Matched */}
-                            <td className="px-4 py-3.5 text-gray-700">
-                              <span className="font-medium">{exec.total_matched ?? 0}</span>
-                              <span className="text-gray-400 text-xs"> / {exec.total_evaluated ?? 0}</span>
-                            </td>
-
-                            {/* Actions Succeeded / Failed */}
-                            <td className="px-4 py-3.5 text-gray-700">
-                              <span className="text-green-600 font-medium">
-                                {exec.actions_succeeded ?? 0}
-                              </span>
-                              {exec.actions_failed > 0 && (
-                                <span className="text-red-500 font-medium ml-1">
-                                  ({exec.actions_failed} failed)
-                                </span>
+                  return (
+                    <React.Fragment key={exec.id}>
+                      <tr
+                        onClick={() => hasLogs && toggleExpand(exec.id)}
+                        className={`transition-colors duration-150 ${
+                          hasLogs ? "cursor-pointer hover:bg-slate-50/80" : ""
+                        } ${isExpanded ? "bg-slate-50/60" : ""}`}
+                      >
+                        {/* Expand Caret */}
+                        <td className="py-3.5 px-3 text-center text-slate-400">
+                          {hasLogs && (
+                            <button
+                              type="button"
+                              className="p-1 rounded hover:bg-slate-200 transition"
+                              aria-label="Expand logs"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
                               )}
-                            </td>
-
-                            {/* Timestamp */}
-                            <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
-                              {formatTimestamp(exec.started_at)}
-                            </td>
-
-                            {/* Duration */}
-                            <td className="px-4 py-3.5 text-gray-500 text-xs">
-                              {calculateDuration(exec.started_at, exec.completed_at)}
-                            </td>
-                          </tr>
-
-                          {/* Expanded Per-Email Logs Drawer */}
-                          {isExpanded && hasLogs && (
-                            <tr className="bg-gray-50/80">
-                              <td colSpan={7} className="px-6 py-4">
-                                <div className="space-y-2">
-                                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    Action Logs ({exec.logs.length})
-                                  </p>
-                                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                                    <table className="w-full text-xs">
-                                      <thead className="bg-gray-100 text-gray-600 border-b border-gray-200">
-                                        <tr>
-                                          <th className="text-left px-3 py-2">Email</th>
-                                          <th className="text-left px-3 py-2">Action</th>
-                                          <th className="text-left px-3 py-2">Status</th>
-                                          <th className="text-left px-3 py-2">Error / Note</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100">
-                                        {exec.logs.map((log) => (
-                                          <tr key={log.id} className="hover:bg-gray-50">
-                                            <td className="px-3 py-2 text-gray-800 font-mono">
-                                              {typeof log.email === "object"
-                                                ? log.email?.subject || log.email?.id
-                                                : log.email || "—"}
-                                            </td>
-                                            <td className="px-3 py-2 font-medium">
-                                              {log.action_type?.replace(/_/g, " ")}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              {log.status === "SUCCESS" ? (
-                                                <span className="text-green-600 font-medium">Success</span>
-                                              ) : (
-                                                <span className="text-red-600 font-medium">{log.status}</span>
-                                              )}
-                                            </td>
-                                            <td className="px-3 py-2 text-red-500">
-                                              {log.error_message || "—"}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
+                            </button>
                           )}
-                        </tbody>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        </td>
 
-              {/* Pagination */}
-              <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-                <Pagination
-                  page={page}
-                  total={total}
-                  pageSize={PAGE_SIZE}
-                  onPage={setPage}
-                />
-              </div>
-            </div>
-          )}
-        </>
+                        {/* Rule Name */}
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {exec.rule_name_snapshot || (exec.rule?.name ?? `Rule #${exec.rule}`)}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3.5 px-4">{getStatusBadge(exec.status)}</td>
+
+                        {/* Evaluated / Matched */}
+                        <td className="py-3.5 px-4 text-slate-700">
+                          <strong className="text-slate-900 font-bold">
+                            {exec.total_matched ?? 0}
+                          </strong>
+                          <span className="text-slate-400 text-xs ml-1">
+                            / {exec.total_evaluated ?? 0}
+                          </span>
+                        </td>
+
+                        {/* Actions Succeeded / Failed */}
+                        <td className="py-3.5 px-4">
+                          <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {exec.actions_succeeded ?? 0} ok
+                          </span>
+                          {exec.actions_failed > 0 && (
+                            <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200 ml-1.5">
+                              {exec.actions_failed} err
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Executed At */}
+                        <td className="py-3.5 px-4 text-slate-500 font-medium whitespace-nowrap text-xs">
+                          {formatTimestamp(exec.started_at)}
+                        </td>
+
+                        {/* Duration */}
+                        <td className="py-3.5 px-4 text-right text-slate-500 font-mono text-xs">
+                          {calculateDuration(exec.started_at, exec.completed_at)}
+                        </td>
+                      </tr>
+
+                      {/* Expanded Drawer for Per-Email Logs */}
+                      {isExpanded && hasLogs && (
+                        <tr className="bg-slate-50/90 border-t border-b border-slate-200">
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                  Granular Action Audit ({exec.logs.length} record{exec.logs.length === 1 ? "" : "s"})
+                                </p>
+                              </div>
+
+                              <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                                <table className="w-full text-xs text-left">
+                                  <thead>
+                                    <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-bold">
+                                      <th className="py-2.5 px-3">Message Subject / ID</th>
+                                      <th className="py-2.5 px-3">Action</th>
+                                      <th className="py-2.5 px-3">Outcome</th>
+                                      <th className="py-2.5 px-3">Timestamp / Details</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {exec.logs.map((log) => (
+                                      <tr key={log.id} className="hover:bg-slate-50/70">
+                                        <td className="py-2 px-3 font-medium text-slate-900 truncate max-w-xs font-mono">
+                                          {typeof log.email === "object"
+                                            ? log.email?.subject || log.email?.id
+                                            : log.email || "—"}
+                                        </td>
+                                        <td className="py-2 px-3">
+                                          <Badge size="sm" variant="info">
+                                            {log.action_type?.replace(/_/g, " ")}
+                                          </Badge>
+                                        </td>
+                                        <td className="py-2 px-3">
+                                          {log.status === "SUCCESS" ? (
+                                            <span className="text-emerald-700 font-bold inline-flex items-center gap-1">
+                                              <CheckCircle2 className="h-3.5 w-3.5" />
+                                              Success
+                                            </span>
+                                          ) : (
+                                            <span className="text-rose-700 font-bold inline-flex items-center gap-1">
+                                              <XCircle className="h-3.5 w-3.5" />
+                                              {log.status}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-3 text-slate-500">
+                                          {log.error_message ? (
+                                            <span className="text-rose-600 font-medium">
+                                              {log.error_message}
+                                            </span>
+                                          ) : (
+                                            formatTimestamp(log.created_at)
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Pagination */}
+          <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
+            <Pagination
+              page={page}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onPage={setPage}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
