@@ -2,16 +2,16 @@
  * DashboardPage — /dashboard
  *
  * Shows:
- *   - Gmail connection status (connected email or "Connect Gmail" button)
+ *   - Gmail connection status (account.connected, account.email_address)
  *   - Sync emails button
- *   - 4 stat cards: total emails, rules, executions, labeled emails
+ *   - 4 stat cards: total emails, unread emails, active rules, recent executions
  *   - Disconnect link (when Gmail is connected)
  *
  * API calls:
- *   GET  /api/mail/stats/      — dashboard numbers + gmail_connected flag
- *   GET  /api/mail/oauth/initiate/ — get Google OAuth URL
- *   POST /api/mail/sync/       — trigger email sync
- *   POST /api/mail/disconnect/ — revoke Gmail access
+ *   GET  /api/mail/stats/          — { account, total_emails, read_emails, unread_emails, total_rules, active_rules, recent_executions }
+ *   GET  /api/mail/oauth/initiate/ — returns { authorization_url }
+ *   POST /api/mail/sync/           — triggers email sync
+ *   POST /api/mail/disconnect/     — revokes Gmail access
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -20,7 +20,7 @@ import {
   Mail,
   ListFilter,
   ClipboardList,
-  Tag,
+  Inbox,
   RefreshCw,
   Loader2,
   CheckCircle,
@@ -36,11 +36,11 @@ import {
 import Spinner from "../../../components/ui/Spinner";
 
 export default function DashboardPage() {
-  const [stats,      setStats]      = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState("");
-  const [syncing,    setSyncing]    = useState(false);
-  const [syncMsg,    setSyncMsg]    = useState("");
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -52,22 +52,30 @@ export default function DashboardPage() {
       const data = await fetchDashboardStats();
       setStats(data);
     } catch (err) {
-      setError(err?.response?.data?.detail || "Failed to load dashboard stats.");
+      setError(err?.response?.data?.message || err?.response?.data?.detail || "Failed to load dashboard stats.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   // ── Connect Gmail ──────────────────────────────────────────────────────────
   async function handleConnectGmail() {
     setConnecting(true);
     try {
-      const { auth_url } = await initiateGmailOAuth();
-      window.location.href = auth_url; // redirect to Google consent screen
+      const data = await initiateGmailOAuth();
+      const targetUrl = data?.authorization_url || data?.auth_url;
+      if (targetUrl) {
+        window.location.href = targetUrl;
+      } else {
+        setError("Authorization URL missing from server response.");
+        setConnecting(false);
+      }
     } catch (err) {
-      setError(err?.response?.data?.detail || "Could not initiate Gmail OAuth.");
+      setError(err?.response?.data?.message || err?.response?.data?.detail || "Could not initiate Gmail OAuth.");
       setConnecting(false);
     }
   }
@@ -78,10 +86,11 @@ export default function DashboardPage() {
     setSyncMsg("");
     try {
       const res = await syncEmails();
-      setSyncMsg(res?.message || "Sync complete!");
-      await loadStats(); // refresh numbers
+      const count = res?.new_count ?? res?.synced_count;
+      setSyncMsg(count !== undefined ? `Synced successfully! (${count} new)` : "Sync complete!");
+      await loadStats();
     } catch (err) {
-      setSyncMsg(err?.response?.data?.detail || "Sync failed. Try again.");
+      setSyncMsg(err?.response?.data?.message || err?.response?.data?.detail || "Sync failed. Try again.");
     } finally {
       setSyncing(false);
     }
@@ -89,35 +98,42 @@ export default function DashboardPage() {
 
   // ── Disconnect Gmail ───────────────────────────────────────────────────────
   async function handleDisconnect() {
-    if (!window.confirm("Disconnect Gmail? This will remove your Gmail tokens.")) return;
+    if (!window.confirm("Disconnect Gmail? This will remove your Gmail integration.")) return;
     setDisconnecting(true);
     try {
       await disconnectGmail();
       await loadStats();
     } catch (err) {
-      setError(err?.response?.data?.detail || "Failed to disconnect Gmail.");
+      setError(err?.response?.data?.message || err?.response?.data?.detail || "Failed to disconnect Gmail.");
     } finally {
       setDisconnecting(false);
     }
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) return <Spinner size="lg" />;
+
+  const isConnected = stats?.account?.connected;
+  const connectedEmail = stats?.account?.email_address;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Page heading */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        {stats?.gmail_connected && (
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-sm text-gray-500">Overview of your inbox and rule automations</p>
+        </div>
+        {isConnected && (
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition"
           >
-            {syncing
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <RefreshCw className="h-4 w-4" />}
+            {syncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             {syncing ? "Syncing…" : "Sync Emails"}
           </button>
         )}
@@ -140,99 +156,99 @@ export default function DashboardPage() {
       )}
 
       {/* Gmail connection card */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        {stats?.gmail_connected ? (
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        {isConnected ? (
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
               <div>
-                <p className="font-medium text-gray-800">Gmail connected</p>
-                <p className="text-sm text-gray-500">{stats.gmail_email || "Account linked"}</p>
+                <p className="font-semibold text-gray-800">Gmail Connected</p>
+                <p className="text-sm text-gray-500">{connectedEmail || "Active Account"}</p>
               </div>
             </div>
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
-              className="text-sm text-red-500 hover:underline disabled:opacity-60"
+              className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-60"
             >
-              {disconnecting ? "Disconnecting…" : "Disconnect"}
+              {disconnecting ? "Disconnecting…" : "Disconnect Account"}
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-medium text-gray-800">Connect your Gmail account</p>
+              <p className="font-semibold text-gray-800">Connect your Gmail Account</p>
               <p className="text-sm text-gray-500">
-                Required to sync emails and apply automation rules.
+                Grant permission so MailPilot can fetch and automate rule actions on your emails.
               </p>
             </div>
             <button
               onClick={handleConnectGmail}
               disabled={connecting}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 shadow-sm"
             >
               {connecting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {connecting ? "Redirecting…" : "Connect Gmail"}
+              {connecting ? "Redirecting to Google…" : "Connect Gmail"}
             </button>
           </div>
         )}
       </div>
 
-      {/* Stat cards — only show when Gmail is connected */}
-      {stats?.gmail_connected && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Emails"
-            value={stats.total_emails}
-            icon={Mail}
-            color="blue"
-          />
-          <StatCard
-            title="Active Rules"
-            value={stats.total_rules}
-            icon={ListFilter}
-            color="purple"
-          />
-          <StatCard
-            title="Executions Run"
-            value={stats.total_executions}
-            icon={ClipboardList}
-            color="green"
-          />
-          <StatCard
-            title="Labeled Emails"
-            value={stats.labeled_emails}
-            icon={Tag}
-            color="orange"
-          />
-        </div>
-      )}
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Synced Emails"
+          value={stats?.total_emails ?? 0}
+          icon={Mail}
+          color="blue"
+        />
+        <StatCard
+          title="Unread Emails"
+          value={stats?.unread_emails ?? 0}
+          icon={Inbox}
+          color="orange"
+        />
+        <StatCard
+          title="Active Rules"
+          value={stats ? `${stats.active_rules ?? 0} / ${stats.total_rules ?? 0}` : "0"}
+          icon={ListFilter}
+          color="purple"
+        />
+        <StatCard
+          title="Recent Executions"
+          value={stats?.recent_executions?.length ?? 0}
+          icon={ClipboardList}
+          color="green"
+        />
+      </div>
 
       {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           to="/emails"
-          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-blue-300 hover:shadow-sm transition-all"
+          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-blue-300 hover:shadow transition"
         >
           <Mail className="h-6 w-6 text-blue-500 mb-2" />
-          <p className="font-medium text-gray-800">View Emails</p>
-          <p className="text-sm text-gray-500">Browse and filter synced emails</p>
+          <p className="font-semibold text-gray-800">Inbox Messages</p>
+          <p className="text-sm text-gray-500">View and inspect synchronized emails</p>
         </Link>
         <Link
           to="/rules"
-          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-purple-300 hover:shadow-sm transition-all"
+          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-purple-300 hover:shadow transition"
         >
           <ListFilter className="h-6 w-6 text-purple-500 mb-2" />
-          <p className="font-medium text-gray-800">Manage Rules</p>
-          <p className="text-sm text-gray-500">Create and edit automation rules</p>
+          <p className="font-semibold text-gray-800">Rule Automations</p>
+          <p className="text-sm text-gray-500">Configure and execute custom filters</p>
         </Link>
         <Link
           to="/executions"
-          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-green-300 hover:shadow-sm transition-all"
+          className="rounded-xl border border-gray-200 bg-white p-5 hover:border-green-300 hover:shadow transition"
         >
           <ClipboardList className="h-6 w-6 text-green-500 mb-2" />
-          <p className="font-medium text-gray-800">Execution History</p>
-          <p className="text-sm text-gray-500">Track rule execution logs</p>
+          <p className="font-semibold text-gray-800">Audit History</p>
+          <p className="text-sm text-gray-500">Review execution logs and affected emails</p>
         </Link>
       </div>
     </div>

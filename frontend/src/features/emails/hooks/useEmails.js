@@ -1,36 +1,27 @@
 /**
  * useEmails — custom hook that owns email list state.
  *
- * Returns:
- *   emails      — current page results
- *   total       — total record count
- *   loading     — bool
- *   error       — string or ""
- *   page        — current page number (1-based)
- *   search      — current search string
- *   label       — currently selected label filter
- *   setPage     — fn
- *   setSearch   — fn (debounced internally)
- *   setLabel    — fn
- *   reload      — fn — force a fresh fetch
+ * Handles single or double-wrapped API response formats,
+ * debounced search, read filter, ordering, and pagination.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchEmails } from "../services/emailService";
 
-const PAGE_SIZE = 20; // must match backend DEFAULT_PAGE_SIZE
+const PAGE_SIZE = 20;
 
 export default function useEmails() {
-  const [emails,  setEmails]  = useState([]);
-  const [total,   setTotal]   = useState(0);
+  const [emails, setEmails] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
+  const [error, setError] = useState("");
 
-  const [page,   setPage]   = useState(1);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [label,  setLabel]  = useState("");
+  const [isReadFilter, setIsReadFilter] = useState(""); // "" | "true" | "false"
+  const [ordering, setOrdering] = useState("-received_datetime");
 
-  // Internal debounced search — avoids an API call per keystroke.
+  // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceTimer = useRef(null);
 
@@ -39,12 +30,17 @@ export default function useEmails() {
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setDebouncedSearch(value);
-      setPage(1); // reset to first page on new search
+      setPage(1);
     }, 400);
   }
 
-  function handleLabelChange(value) {
-    setLabel(value);
+  function handleIsReadChange(value) {
+    setIsReadFilter(value);
+    setPage(1);
+  }
+
+  function handleOrderingChange(value) {
+    setOrdering(value);
     setPage(1);
   }
 
@@ -52,26 +48,43 @@ export default function useEmails() {
     setLoading(true);
     setError("");
     try {
-      const params = { page };
+      const params = {
+        page,
+        limit: PAGE_SIZE,
+      };
       if (debouncedSearch) params.search = debouncedSearch;
-      if (label)           params.label  = label;
-      const data = await fetchEmails(params);
-      // Support both DRF paginated { count, results } and plain array responses
-      if (Array.isArray(data)) {
-        setEmails(data);
-        setTotal(data.length);
-      } else {
-        setEmails(data.results ?? []);
-        setTotal(data.count   ?? 0);
+      if (isReadFilter !== "") params.is_read = isReadFilter;
+      if (ordering) params.ordering = ordering;
+
+      const res = await fetchEmails(params);
+
+      // Defensively unwrap single or double wrapped DRF pagination payload
+      let results = [];
+      let count = 0;
+
+      if (Array.isArray(res)) {
+        results = res;
+        count = res.length;
+      } else if (res?.results) {
+        results = res.results;
+        count = res.count ?? results.length;
+      } else if (res?.data?.results) {
+        results = res.data.results;
+        count = res.data.count ?? results.length;
       }
+
+      setEmails(results);
+      setTotal(count);
     } catch (err) {
-      setError(err?.response?.data?.detail || "Failed to load emails.");
+      setError(err?.response?.data?.message || err?.response?.data?.detail || "Failed to load emails.");
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, label]);
+  }, [page, debouncedSearch, isReadFilter, ordering]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return {
     emails,
@@ -80,11 +93,13 @@ export default function useEmails() {
     error,
     page,
     search,
-    label,
+    isReadFilter,
+    ordering,
     pageSize: PAGE_SIZE,
     setPage,
     setSearch: handleSearchChange,
-    setLabel:  handleLabelChange,
-    reload:    load,
+    setIsReadFilter: handleIsReadChange,
+    setOrdering: handleOrderingChange,
+    reload: load,
   };
 }
