@@ -44,6 +44,7 @@ export default function OAuthCallback() {
       })
       .catch((err) => {
         const msg =
+          err?.response?.data?.message ||
           err?.response?.data?.detail ||
           err?.response?.data?.error ||
           "Failed to connect Gmail. Please try again.";
