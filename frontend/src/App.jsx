@@ -1,22 +1,61 @@
+/**
+ * App.jsx — Root component.
+ *
+ * Responsibilities:
+ *   1. Wraps the whole app in <AuthProvider> so every component can read auth state.
+ *   2. Defines the entire client-side route map using React Router v6.
+ *
+ * Route structure:
+ *   /login             → LoginPage      (public)
+ *   /register          → RegisterPage   (public)
+ *   /                  → <ProtectedLayout> (requires login)
+ *     /dashboard       → DashboardPage
+ *     /emails          → EmailListPage
+ *     /rules           → RulesPage
+ *     /executions      → ExecutionHistoryPage
+ *   * (catch-all)      → redirect to /dashboard
+ */
 
-function App() {
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+
+// Layout
+import ProtectedLayout from "./components/layout/ProtectedLayout";
+
+// Auth pages
+import LoginPage    from "./features/auth/pages/LoginPage";
+import RegisterPage from "./features/auth/pages/RegisterPage";
+
+// Protected pages (placeholders — replaced step by step)
+import DashboardPage       from "./features/dashboard/pages/DashboardPage";
+import EmailListPage       from "./features/emails/pages/EmailListPage";
+import RulesPage           from "./features/rules/pages/RulesPage";
+import ExecutionHistoryPage from "./features/execution-history/pages/ExecutionHistoryPage";
+
+export default function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-        <h1 className="text-3xl font-bold text-blue-600">
-          React + Tailwind
-        </h1>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* ── Public routes ─────────────────────────────────────── */}
+          <Route path="/login"    element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        <p className="mt-3 text-gray-600">
-          Tailwind CSS is working!
-        </p>
+          {/* ── Protected routes (require authentication) ─────────── */}
+          <Route element={<ProtectedLayout />}>
+            <Route path="/dashboard"  element={<DashboardPage />} />
+            <Route path="/emails"     element={<EmailListPage />} />
+            <Route path="/rules"      element={<RulesPage />} />
+            <Route path="/executions" element={<ExecutionHistoryPage />} />
 
-        <button className="mt-5 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
-          Test Button
-        </button>
-      </div>
-    </div>
+            {/* Default: redirect / to /dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+          </Route>
+
+          {/* ── Catch-all ─────────────────────────────────────────── */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
-
-export default App;
