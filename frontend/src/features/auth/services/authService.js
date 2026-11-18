@@ -14,13 +14,13 @@ export async function loginUser(email, password) {
 }
 
 /** POST /api/users/register/ */
-export async function registerUser(email, password, password2) {
+export async function registerUser(email, password, confirm_password) {
   const { data } = await client.post("/users/register/", {
     email,
     password,
-    password2,
+    confirm_password,          // ← backend expects this exact field name
   });
-  return data; // { access, refresh }  (or just user info — depends on backend)
+  return data;
 }
 
 /** POST /api/users/logout/ */

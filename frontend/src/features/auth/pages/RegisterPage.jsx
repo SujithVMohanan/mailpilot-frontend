@@ -22,7 +22,7 @@ export default function RegisterPage() {
   const navigate   = useNavigate();
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [form, setForm]     = useState({ email: "", password: "", password2: "" });
+  const [form, setForm]     = useState({ email: "", password: "", confirm_password: "" });
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading]   = useState(false);
@@ -41,8 +41,8 @@ export default function RegisterPage() {
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Enter a valid email.";
     if (!form.password)           errs.password  = "Password is required.";
     else if (form.password.length < 8) errs.password = "Password must be at least 8 characters.";
-    if (!form.password2)          errs.password2 = "Please confirm your password.";
-    else if (form.password !== form.password2) errs.password2 = "Passwords do not match.";
+    if (!form.confirm_password)          errs.confirm_password = "Please confirm your password.";
+    else if (form.password !== form.confirm_password) errs.confirm_password = "Passwords do not match.";
     return errs;
   }
 
@@ -55,7 +55,7 @@ export default function RegisterPage() {
     setApiError("");
 
     try {
-      const data = await registerUser(form.email, form.password, form.password2);
+      const data = await registerUser(form.email, form.password, form.confirm_password);
       await login(data);
       navigate("/dashboard");
     } catch (err) {
@@ -64,9 +64,9 @@ export default function RegisterPage() {
       if (serverErrors && typeof serverErrors === "object") {
         // Map backend field errors onto form fields
         const mapped = {};
-        if (serverErrors.email)     mapped.email     = serverErrors.email[0];
-        if (serverErrors.password)  mapped.password  = serverErrors.password[0];
-        if (serverErrors.password2) mapped.password2 = serverErrors.password2[0];
+        if (serverErrors.email)            mapped.email            = serverErrors.email[0];
+        if (serverErrors.password)         mapped.password         = serverErrors.password[0];
+        if (serverErrors.confirm_password) mapped.confirm_password = serverErrors.confirm_password[0];
         if (Object.keys(mapped).length) {
           setErrors(mapped);
           return;
@@ -131,14 +131,14 @@ export default function RegisterPage() {
           />
 
           <FormInput
-            id="password2"
-            name="password2"
+            id="confirm_password"
+            name="confirm_password"
             label="Confirm password"
             type="password"
             placeholder="Re-enter password"
-            value={form.password2}
+            value={form.confirm_password}
             onChange={handleChange}
-            error={errors.password2}
+            error={errors.confirm_password}
             autoComplete="new-password"
           />
 
