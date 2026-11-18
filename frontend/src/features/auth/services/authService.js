@@ -1,26 +1,28 @@
 /**
  * authService.js — Auth API calls.
  *
- * Thin wrapper around the Axios client for auth endpoints.
- * Views call these functions; they never call client directly.
+ * IMPORTANT: The backend wraps all responses in an envelope:
+ *   { status, status_code, message, data: { ... }, errors }
+ *
+ * So the actual payload is always at response.data.data
  */
 
 import client from "../../../api/client";
 
-/** POST /api/users/login/ */
+/** POST /api/users/login/ → returns { access, refresh, user } */
 export async function loginUser(email, password) {
-  const { data } = await client.post("/users/login/", { email, password });
-  return data; // { access, refresh }
+  const response = await client.post("/users/login/", { email, password });
+  return response.data.data; // unwrap envelope → { access, refresh, user }
 }
 
-/** POST /api/users/register/ */
+/** POST /api/users/register/ → returns { access, refresh, user } */
 export async function registerUser(email, password, confirm_password) {
-  const { data } = await client.post("/users/register/", {
+  const response = await client.post("/users/register/", {
     email,
     password,
-    confirm_password,          // ← backend expects this exact field name
+    confirm_password,
   });
-  return data;
+  return response.data.data; // unwrap envelope → { access, refresh, user }
 }
 
 /** POST /api/users/logout/ */

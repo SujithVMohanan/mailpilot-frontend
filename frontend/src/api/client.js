@@ -86,12 +86,13 @@ client.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post(
+        const response = await axios.post(
           `${import.meta.env.VITE_API_BASE_URL}/users/refresh/`,
           { refresh }
         );
 
-        const newAccess = data.access;
+        // Backend wraps response: { status, data: { access, refresh }, ... }
+        const newAccess = response.data?.data?.access || response.data?.access;
         localStorage.setItem("access", newAccess);
 
         // Update the default header for future requests.

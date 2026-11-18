@@ -1,31 +1,26 @@
 /**
  * emailService.js — Email API calls.
  *
- * Endpoints:
- *   GET /api/mail/          — paginated email list (search, label, page)
- *   GET /api/mail/<id>/     — single email detail
- *   GET /api/mail/labels/   — Gmail label list
+ * Backend wraps all responses: { status, status_code, message, data: {...}, errors }
+ * We always unwrap: response.data.data
  */
 
 import client from "../../../api/client";
 
-/**
- * Fetch paginated email list.
- * @param {Object} params — { search, label, page }
- */
+/** GET /api/mail/ — paginated list */
 export async function fetchEmails(params = {}) {
-  const { data } = await client.get("/mail/", { params });
-  return data; // { count, next, previous, results: [...] }
+  const response = await client.get("/mail/", { params });
+  return response.data?.data ?? response.data;
 }
 
-/** Fetch a single email by ID. */
+/** GET /api/mail/<id>/ */
 export async function fetchEmailDetail(id) {
-  const { data } = await client.get(`/mail/${id}/`);
-  return data;
+  const response = await client.get(`/mail/${id}/`);
+  return response.data?.data ?? response.data;
 }
 
-/** Fetch Gmail labels for the filter dropdown. */
+/** GET /api/mail/labels/ */
 export async function fetchLabels() {
-  const { data } = await client.get("/mail/labels/");
-  return data; // array of label objects or strings
+  const response = await client.get("/mail/labels/");
+  return response.data?.data ?? response.data;
 }

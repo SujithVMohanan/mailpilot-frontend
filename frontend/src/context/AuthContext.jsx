@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
 
     client
       .get("/users/me/")
-      .then(({ data }) => setUser(data))
+      .then(({ data }) => setUser(data?.data || data))   // unwrap envelope
       .catch(() => {
         // Tokens invalid / refresh failed → interceptor already cleared storage.
         setUser(null);
@@ -57,8 +57,8 @@ export function AuthProvider({ children }) {
     if (data.user) {
       setUser(data.user);
     } else {
-      const { data: me } = await client.get("/users/me/");
-      setUser(me);
+      const { data: res } = await client.get("/users/me/");
+      setUser(res?.data || res);  // unwrap envelope
     }
   }, []);
 
