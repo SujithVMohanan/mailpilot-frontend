@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Mail Pilot</title>
+  <meta name="description" content="Official Privacy Policy for Mail Pilot, detailing our adherence to Google API Services User Data Policy and Limited Use requirements." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f8fafc;
+      color: #334155;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 1.25rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-content {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .brand-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      background: #2563eb;
+      color: #ffffff;
+      border-radius: 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-icon svg { width: 1.2rem; height: 1.2rem; }
+    .back-link {
+      font-size: 0.875rem;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .container {
+      max-width: 860px;
+      margin: 2.5rem auto 4rem;
+      padding: 0 1.5rem;
+    }
+    .page-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.5rem;
+    }
+    .last-updated {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-bottom: 2rem;
+    }
+    .google-disclosure-card {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 1rem;
+      padding: 1.75rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      gap: 1.25rem;
+    }
+    .disclosure-icon {
+      width: 2.5rem;
+      height: 2.5rem;
+      background: #2563eb;
+      color: #ffffff;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .disclosure-icon svg { width: 1.5rem; height: 1.5rem; }
+    .disclosure-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 0.5rem;
+    }
+    .disclosure-text {
+      font-size: 0.925rem;
+      color: #1e40af;
+      line-height: 1.6;
+    }
+    .disclosure-text a {
+      color: #1d4ed8;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .policy-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1.25rem;
+      padding: 2.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 2rem;
+      margin-bottom: 0.875rem;
+      letter-spacing: -0.015em;
+    }
+    h2:first-of-type { margin-top: 0; }
+    p { margin-bottom: 1rem; font-size: 0.95rem; }
+    ul {
+      margin-bottom: 1.25rem;
+      padding-left: 1.5rem;
+      font-size: 0.95rem;
+    }
+    li { margin-bottom: 0.6rem; color: #475569; }
+    li strong { color: #1e293b; }
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.875rem;
+      margin: 1.25rem 0;
+    }
+    .rule-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-size: 0.875rem;
+    }
+    .rule-item-title {
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .rule-item-title span { color: #16a34a; }
+    .contact-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .contact-box a { color: #2563eb; text-decoration: none; font-weight: 600; }
+    .contact-box a:hover { text-decoration: underline; }
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: #64748b;
+      background: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header class="header">
+    <div class="header-content">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <span>Mail Pilot</span>
+      </a>
+      <a href="index.html" class="back-link">← Return to Homepage</a>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="container">
+    <h1 class="page-title">Privacy Policy</h1>
+    <p class="last-updated">Last Updated: <strong>November 18, 2026</strong></p>
+
+    <!-- Google Limited Use Disclosure -->
+    <div class="google-disclosure-card">
+      <div class="disclosure-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+        </svg>
+      </div>
+      <div>
+        <h2 class="disclosure-title">Google API Services User Data Policy Compliance</h2>
+        <p class="disclosure-text">
+          Mail Pilot's use and transfer to any other app of information received from Google APIs will adhere to the 
+          <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">
+            Google API Services User Data Policy
+          </a>, including the <strong>Limited Use</strong> requirements.
+        </p>
+      </div>
+    </div>
+
+    <!-- Policy Document -->
+    <article class="policy-card">
+      <h2>1. Overview & Purpose</h2>
+      <p>
+        <strong>Mail Pilot</strong> is a web-based email productivity application designed to help users organize, categorize, and automate their Gmail messages through custom filtering rules.
+      </p>
+      <p>
+        This Privacy Policy explains how Mail Pilot collects, uses, protects, and manages your personal information and Google user data when you access our application.
+      </p>
+
+      <h2>2. Information We Collect</h2>
+      <p>We collect only the minimum data required to execute your configured email automation workflows:</p>
+      <ul>
+        <li><strong>Account Information:</strong> When you register an account, we collect your email address and a securely salted password hash.</li>
+        <li><strong>Google OAuth 2.0 Credentials:</strong> When you authorize Gmail integration, Google provides an OAuth access token, refresh token, and your email address. We do <em>not</em> receive or store your Google account password.</li>
+        <li><strong>Email Headers & Content:</strong> To evaluate your automated filtering rules, we synchronize message identifiers, sender address, recipient address, subject, timestamp, label IDs, snippet, and message body text.</li>
+        <li><strong>Automation Rules & Execution Logs:</strong> We store the conditions you configure (e.g., <em>"Subject contains Invoice"</em>) and the audit history of executed actions.</li>
+      </ul>
+
+      <h2>3. How We Use Your Information</h2>
+      <p>Your information is used strictly to provide the core service:</p>
+      <ul>
+        <li>Evaluating configured rules against stored messages locally in our Python rule engine.</li>
+        <li>Executing actions you have explicitly configured, such as marking emails as read/unread or moving them to designated labels via the Gmail API.</li>
+        <li>Presenting your synchronized inbox, automation statistics, and execution history on your personal dashboard.</li>
+        <li>Protecting the security and multi-tenant isolation of your account.</li>
+      </ul>
+
+      <h2>4. Strict Limitations on Google User Data (Limited Use)</h2>
+      <p>In accordance with Google's Limited Use requirements:</p>
+      <div class="rules-grid">
+        <div class="rule-item">
+          <div class="rule-item-title"><span>✓</span> Zero Advertising</div>
+          We never use or transfer your email content or metadata for serving advertisements or marketing.
+        </div>
+        <div class="rule-item">
+          <div class="rule-item-title"><span>✓</span> No Selling of Data</div>
+          We never sell, rent, license, or monetize your personal information or email data to third parties.
+        </div>
+        <div class="rule-item">
+          <div class="rule-item-title"><span>✓</span> No AI/ML Training</div>
+          Your email data is never used to train generalized artificial intelligence or large language models.
+        </div>
+        <div class="rule-item">
+          <div class="rule-item-title"><span>✓</span> No Human Reading</div>
+          No humans read your email messages unless you give explicit permission for technical support or required by law.
+        </div>
+      </div>
+
+      <h2>5. Data Security & Encryption</h2>
+      <p>We apply enterprise-grade safeguards to keep your data secure:</p>
+      <ul>
+        <li><strong>Encryption at Rest:</strong> OAuth access tokens and refresh tokens are encrypted at rest in our database using strong symmetric cryptography (`EncryptedTextField`).</li>
+        <li><strong>Encryption in Transit:</strong> All data transferred between your browser, our servers, and Google APIs is encrypted using Transport Layer Security (TLS 1.3 / HTTPS).</li>
+        <li><strong>Strict Tenancy:</strong> Each user's data is strictly partitioned so users can only ever view and modify their own emails and rules.</li>
+      </ul>
+
+      <h2>6. Data Retention, Disconnect & Deletion</h2>
+      <p>You have full control over your data at all times:</p>
+      <ul>
+        <li><strong>Disconnecting from Mail Pilot:</strong> You can disconnect your Gmail account at any time with a single click from the Dashboard. Disconnecting immediately revokes our access and purges all stored tokens.</li>
+        <li><strong>Revoking Access via Google:</strong> You can revoke Mail Pilot's permissions at any time through your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">Google Account Security Settings</a>.</li>
+        <li><strong>Complete Account Deletion:</strong> You can request full deletion of your user account and all synchronized email records by contacting our support team.</li>
+      </ul>
+
+      <h2>7. Contact Us</h2>
+      <p>If you have any questions about this Privacy Policy or our Google OAuth integration, please contact our team:</p>
+      <div class="contact-box">
+        <p><strong>Mail Pilot Privacy & Security Team</strong></p>
+        <p>Privacy Inquiries: <a href="mailto:privacy@mailpilot.app">privacy@mailpilot.app</a></p>
+        <p>Support: <a href="mailto:support@mailpilot.app">support@mailpilot.app</a></p>
+        <p>Application: Mail Pilot (Gmail Automation Platform)</p>
+      </div>
+    </article>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Mail Pilot. All rights reserved. Built for Google Workspace Automation.</p>
+  </footer>
+
+</body>
+</html>
