@@ -1,16 +1,78 @@
-# React + Vite
+# ✈️ Mail Pilot — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite frontend for the Mail Pilot Gmail Automation Platform.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Clone & Setup
 
-## React Compiler
+### 1. Clone the repository
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+git clone https://github.com/SujithVMohanan/mailpilot-frontend.git
+cd mailpilot-frontend/frontend
+```
 
-## Expanding the Oxlint configuration
+### 2. Install dependencies
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+npm install
+```
+
+### 3. Configure environment
+
+Create a `.env` file in the `frontend/` folder:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_APP_NAME=Mail Pilot
+```
+
+### 4. Run the development server
+
+```bash
+npm run dev
+```
+
+App runs at **http://localhost:5173**
+
+---
+
+## Build for Production
+
+```bash
+npm run build
+```
+
+Output is in `dist/`.
+
+---
+
+## Folder Structure
+
+```
+mailpilot-frontend/
+└── frontend/              ← React app lives here
+    ├── src/
+    │   ├── api/           ← Axios HTTP client
+    │   ├── context/       ← Auth context (JWT)
+    │   ├── components/    ← Shared UI + layout components
+    │   ├── features/      ← Auth, Dashboard, Emails, Rules, Executions
+    │   └── pages/         ← Public pages (Home, Privacy Policy)
+    ├── public/            ← Static HTML files
+    ├── .env               ← Your local env variables (not committed)
+    └── package.json
+```
+
+---
+
+## Requires Backend
+
+This app needs the **Mail Pilot Django backend** running at `http://localhost:8000`.
+
+```bash
+git clone https://github.com/SujithVMohanan/mailpilot-backend.git
+cd mailpilot-backend
+```
+
+See the backend README for setup instructions.
